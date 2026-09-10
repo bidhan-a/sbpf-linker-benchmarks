@@ -1,0 +1,14 @@
+[package]
+name = "function-pointer"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[target.'cfg(target_arch = "bpf")'.dependencies]
+solana-compiler-builtins = { git = "https://github.com/blueshift-gg/solana-compiler-builtins", version = "0.1.0" }
+
+[target.'cfg(not(target_arch = "bpf"))'.dependencies]
+sbpf-benchmark = { workspace = true }

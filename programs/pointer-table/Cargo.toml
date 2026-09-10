@@ -1,0 +1,11 @@
+[package]
+name = "pointer-table"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[target.'cfg(not(target_arch = "bpf"))'.dependencies]
+sbpf-benchmark = { workspace = true }

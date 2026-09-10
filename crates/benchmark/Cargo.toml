@@ -1,0 +1,15 @@
+[package]
+name = "sbpf-benchmark"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+mollusk-svm = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+solana-account = { workspace = true }
+solana-instruction = { workspace = true }
+solana-pubkey = { workspace = true }
+solana-sdk-ids = { workspace = true }

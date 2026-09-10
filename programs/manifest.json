@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "programs": [
+    {
+      "name": "function-pointer",
+      "benchmarks": [
+        {
+          "name": "bench-function-pointer",
+          "expected_compute_units": 31
+        }
+      ]
+    },
+    {
+      "name": "pointer-table",
+      "benchmarks": [
+        {
+          "name": "bench-pointer-table",
+          "expected_compute_units": 23
+        }
+      ]
+    }
+  ]
+}
