@@ -3,25 +3,33 @@ name = "sbpf-linker-benchmarks"
 version = "0.1.0"
 edition = "2024"
 
+[build-dependencies]
+serde_json = { workspace = true }
+
 [workspace]
-members = ["crates/benchmark", "programs/*"]
+members = ["crates/harness", "programs/*"]
 resolver = "2"
 
 [dependencies]
+harness = { workspace = true }
 function-pointer = { path = "programs/function-pointer" }
 pointer-table = { path = "programs/pointer-table" }
-sbpf-benchmark = { workspace = true }
+
+[lints]
+workspace = true
 
 [workspace.dependencies]
 mollusk-svm = "=0.15.1"
-sbpf-benchmark = { path = "crates/benchmark" }
+harness = { path = "crates/harness" }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
-sha2 = "0.10.9"
 solana-account = "4.3.2"
 solana-instruction = "3.4.1"
 solana-pubkey = "4.2.1"
 solana-sdk-ids = "3.1.0"
+
+[workspace.lints.rust]
+unexpected_cfgs = "allow"
 
 [profile.release]
 overflow-checks = true

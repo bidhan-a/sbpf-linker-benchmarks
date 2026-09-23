@@ -1,5 +1,5 @@
 [package]
-name = "function-pointer"
+name = "rodata-alignment"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
@@ -13,6 +13,5 @@ workspace = true
 [target.'cfg(target_arch = "bpf")'.dependencies]
 solana-compiler-builtins = { git = "https://github.com/blueshift-gg/solana-compiler-builtins", version = "0.1.0" }
 
-[target.'cfg(not(any(target_arch = "bpf", target_os = "solana")))'.dependencies]
+[dev-dependencies]
 harness = { workspace = true }
-

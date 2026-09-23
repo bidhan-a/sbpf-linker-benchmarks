@@ -969,7 +969,7 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 name = "function-pointer"
 version = "0.1.0"
 dependencies = [
- "sbpf-benchmark",
+ "harness",
  "solana-compiler-builtins",
 ]
 
@@ -1030,6 +1030,19 @@ dependencies = [
  "rand_core 0.6.4",
  "rand_xorshift",
  "subtle",
+]
+
+[[package]]
+name = "harness"
+version = "0.1.0"
+dependencies = [
+ "mollusk-svm",
+ "serde",
+ "serde_json",
+ "solana-account",
+ "solana-instruction",
+ "solana-pubkey",
+ "solana-sdk-ids",
 ]
 
 [[package]]
@@ -1543,7 +1556,8 @@ dependencies = [
 name = "pointer-table"
 version = "0.1.0"
 dependencies = [
- "sbpf-benchmark",
+ "harness",
+ "solana-compiler-builtins",
 ]
 
 [[package]]
@@ -1737,6 +1751,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "rodata-alignment"
+version = "0.1.0"
+dependencies = [
+ "harness",
+ "solana-compiler-builtins",
+]
+
+[[package]]
 name = "rustc-demangle"
 version = "0.1.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1752,26 +1774,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "sbpf-benchmark"
-version = "0.1.0"
-dependencies = [
- "mollusk-svm",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "solana-account",
- "solana-instruction",
- "solana-pubkey",
- "solana-sdk-ids",
-]
-
-[[package]]
 name = "sbpf-linker-benchmarks"
 version = "0.1.0"
 dependencies = [
  "function-pointer",
+ "harness",
  "pointer-table",
- "sbpf-benchmark",
+ "serde_json",
 ]
 
 [[package]]
@@ -2089,7 +2098,7 @@ dependencies = [
 [[package]]
 name = "solana-compiler-builtins"
 version = "0.1.0"
-source = "git+https://github.com/blueshift-gg/solana-compiler-builtins#fd7ac4a977ca6f7deaa3e3aa0ae83a4f25f2a5e0"
+source = "git+https://github.com/blueshift-gg/solana-compiler-builtins#1005f417d68c8c7e65fc4b3c05075bd80886f093"
 
 [[package]]
 name = "solana-compute-budget"

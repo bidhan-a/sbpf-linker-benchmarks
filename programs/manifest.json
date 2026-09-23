@@ -6,7 +6,7 @@
       "benchmarks": [
         {
           "name": "bench-function-pointer",
-          "expected_compute_units": 31
+          "expected_compute_units": 32
         }
       ]
     },
@@ -15,9 +15,13 @@
       "benchmarks": [
         {
           "name": "bench-pointer-table",
-          "expected_compute_units": 23
+          "expected_compute_units": 15
         }
       ]
+    },
+    {
+      "name": "rodata-alignment",
+      "benchmarks": []
     }
   ]
 }

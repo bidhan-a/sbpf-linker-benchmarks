@@ -1,12 +1,12 @@
-#![cfg_attr(target_arch = "bpf", no_std)]
+#![cfg_attr(any(target_arch = "bpf", target_os = "solana"), no_std)]
 
-#[cfg(target_arch = "bpf")]
+#[cfg(any(target_arch = "bpf", target_os = "solana"))]
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
     unsafe { core::hint::unreachable_unchecked() }
 }
 
-#[cfg(target_arch = "bpf")]
+#[cfg(any(target_arch = "bpf", target_os = "solana"))]
 mod program {
     #[repr(transparent)]
     struct Pubkey([u8; 32]);
@@ -16,7 +16,7 @@ mod program {
     static AUTH2: Pubkey = Pubkey([0x33; 32]);
     static AUTH3: Pubkey = Pubkey([0x44; 32]);
 
-    #[used]
+    #[unsafe(no_mangle)]
     static REGISTRY: [&Pubkey; 4] = [&AUTH0, &AUTH1, &AUTH2, &AUTH3];
 
     #[unsafe(no_mangle)]
@@ -37,11 +37,31 @@ mod program {
     }
 }
 
-#[cfg(not(target_arch = "bpf"))]
+#[cfg(test)]
+mod tests {
+    use harness::{Check, Instruction, Mollusk, Pubkey};
+
+    #[test]
+    fn registry_all_indices() {
+        let program_id: Pubkey = [2u8; 32].into();
+        let mollusk = Mollusk::new(&program_id, &harness::program_elf());
+        for index in 0..4u8 {
+            mollusk.process_and_validate_instruction(
+                &Instruction {
+                    program_id,
+                    accounts: vec![],
+                    data: vec![index],
+                },
+                &[],
+                &[Check::success()],
+            );
+        }
+    }
+}
+
+#[cfg(not(any(target_arch = "bpf", target_os = "solana")))]
 pub mod benchmark {
-    use sbpf_benchmark::{
-        Benchmark, BenchmarkError, BenchmarkResult, Check, Instruction, Mollusk, Pubkey,
-    };
+    use harness::{Benchmark, BenchmarkError, BenchmarkResult, Instruction, Mollusk, Pubkey};
 
     pub fn run(
         mollusk: &Mollusk,
@@ -55,7 +75,6 @@ pub mod benchmark {
                 data: vec![2],
             },
             &[],
-            &[Check::success()],
         )?;
 
         Ok(vec![result])

@@ -7,7 +7,7 @@ use std::{
 
 use serde::Deserialize;
 
-use crate::{cargo, command_error, invalid_data, invalid_input, validate_name};
+use crate::{cargo, command_error, invalid_data, validate_name};
 
 const SCHEMA_VERSION: u32 = 1;
 
@@ -18,16 +18,11 @@ pub(crate) struct Manifest {
     pub(crate) programs: Vec<ExpectedProgram>,
 }
 
-impl Manifest {
-    pub(crate) fn schema_version(&self) -> u32 {
-        self.schema_version
-    }
-}
-
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct ExpectedProgram {
     pub(crate) name: String,
+    #[serde(default)]
     pub(crate) benchmarks: Vec<ExpectedBenchmark>,
 }
 
@@ -35,40 +30,14 @@ pub(crate) struct ExpectedProgram {
 #[serde(deny_unknown_fields)]
 pub(crate) struct ExpectedBenchmark {
     pub(crate) name: String,
-    expected_compute_units: NullableComputeUnits,
-}
-
-impl ExpectedBenchmark {
-    pub(crate) fn expected_compute_units(&self) -> Option<u64> {
-        self.expected_compute_units.value()
-    }
-}
-
-#[derive(Clone, Copy, Debug, Deserialize)]
-#[serde(untagged)]
-enum NullableComputeUnits {
-    Value(u64),
-    Null(()),
-}
-
-impl NullableComputeUnits {
-    fn value(self) -> Option<u64> {
-        match self {
-            Self::Value(value) => Some(value),
-            Self::Null(()) => None,
-        }
-    }
+    pub(crate) expected_compute_units: u64,
 }
 
 #[cfg(test)]
-pub(crate) fn expected_benchmark(
-    name: &str,
-    expected_compute_units: Option<u64>,
-) -> ExpectedBenchmark {
+pub(crate) fn expected_benchmark(name: &str, expected_compute_units: u64) -> ExpectedBenchmark {
     ExpectedBenchmark {
         name: name.to_owned(),
-        expected_compute_units: expected_compute_units
-            .map_or(NullableComputeUnits::Null(()), NullableComputeUnits::Value),
+        expected_compute_units,
     }
 }
 
@@ -181,12 +150,6 @@ pub(crate) fn validate(
                 program.name
             )));
         }
-        if program.benchmarks.is_empty() {
-            return Err(invalid_data(format!(
-                "manifest program `{}` contains no benchmarks",
-                program.name
-            )));
-        }
         let mut benchmark_names = BTreeSet::new();
         for benchmark in &program.benchmarks {
             validate_name(&benchmark.name).map_err(invalid_data)?;
@@ -217,22 +180,6 @@ pub(crate) fn validate(
     Ok(())
 }
 
-pub(crate) fn select<'a>(
-    manifest: &'a Manifest,
-    selected: Option<&str>,
-) -> Result<Vec<(usize, &'a ExpectedProgram)>, Box<dyn Error>> {
-    match selected {
-        Some(name) => manifest
-            .programs
-            .iter()
-            .enumerate()
-            .find(|(_, program)| program.name == name)
-            .map(|program| vec![program])
-            .ok_or_else(|| invalid_input(format!("program `{name}` is not in the manifest"))),
-        None => Ok(manifest.programs.iter().enumerate().collect()),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::Manifest;
@@ -250,7 +197,7 @@ mod tests {
     }
 
     #[test]
-    fn accepts_explicit_null_compute_units() {
+    fn rejects_null_compute_units() {
         let manifest = r#"{
             "schema_version": 1,
             "programs": [{
@@ -261,11 +208,6 @@ mod tests {
                 }]
             }]
         }"#;
-        let manifest = serde_json::from_str::<Manifest>(manifest).unwrap();
-        assert!(
-            manifest.programs[0].benchmarks[0]
-                .expected_compute_units()
-                .is_none()
-        );
+        assert!(serde_json::from_str::<Manifest>(manifest).is_err());
     }
 }
