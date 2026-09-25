@@ -8,6 +8,10 @@ publish = false
 workspace = true
 
 [dependencies]
+comfy-table = { workspace = true }
+indicatif = { workspace = true }
+jiff = { workspace = true }
+log = { workspace = true }
 mollusk-svm = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

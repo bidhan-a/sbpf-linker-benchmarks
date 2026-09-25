@@ -1,4 +1,4 @@
-//! Generates the program registration from `programs/manifest.json`.
+//! Registers the programs in `programs/manifest.json` for benchmarking and testing.
 
 use std::{env, fs, path::Path};
 

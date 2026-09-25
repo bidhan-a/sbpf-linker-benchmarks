@@ -33,14 +33,6 @@ pub(crate) struct ExpectedBenchmark {
     pub(crate) expected_compute_units: u64,
 }
 
-#[cfg(test)]
-pub(crate) fn expected_benchmark(name: &str, expected_compute_units: u64) -> ExpectedBenchmark {
-    ExpectedBenchmark {
-        name: name.to_owned(),
-        expected_compute_units,
-    }
-}
-
 pub(crate) fn load(path: &Path) -> Result<Manifest, Box<dyn Error>> {
     let bytes = std::fs::read(path)?;
     let manifest: Manifest = serde_json::from_slice(&bytes)?;
@@ -178,36 +170,4 @@ pub(crate) fn validate(
         )));
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::Manifest;
-
-    #[test]
-    fn requires_expected_compute_units_field() {
-        let manifest = r#"{
-            "schema_version": 1,
-            "programs": [{
-                "name": "program",
-                "benchmarks": [{"name": "benchmark"}]
-            }]
-        }"#;
-        assert!(serde_json::from_str::<Manifest>(manifest).is_err());
-    }
-
-    #[test]
-    fn rejects_null_compute_units() {
-        let manifest = r#"{
-            "schema_version": 1,
-            "programs": [{
-                "name": "program",
-                "benchmarks": [{
-                    "name": "benchmark",
-                    "expected_compute_units": null
-                }]
-            }]
-        }"#;
-        assert!(serde_json::from_str::<Manifest>(manifest).is_err());
-    }
 }

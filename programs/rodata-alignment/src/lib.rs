@@ -34,7 +34,7 @@ mod tests {
 
         let mollusk = Mollusk::new(&program_id, &harness::program_elf());
 
-        let instruction = Instruction::new_with_bytes(program_id.into(), &[], vec![]);
+        let instruction = Instruction::new_with_bytes(program_id, &[], vec![]);
         let result = mollusk.process_instruction(&instruction, &[]);
 
         // The program returns `address_of(ALIGNED) % 64`. A correctly laid-out

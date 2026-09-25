@@ -1,6 +1,8 @@
 mod compiler;
 
-use compiler::{CARGO_BUILD_SBF, CARGO_BUILD_SBPF, Compiler};
+pub use compiler::Compiler;
+
+mod logging;
 mod manifest;
 mod model;
 mod report;
@@ -12,7 +14,7 @@ use std::{
     ffi::OsString,
     fmt, io,
     path::{Path, PathBuf},
-    process::{ExitCode, Output},
+    process::Output,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -23,12 +25,13 @@ pub use solana_instruction::Instruction;
 pub use solana_pubkey::Pubkey;
 
 /// Environment variable which contains the absolute path of the program ELF to load
-pub const SBPF_PROGRAM_ELF_ENV: &str = "SBPF_PROGRAM_ELF";
+pub(crate) const SBPF_PROGRAM_ELF_ENV: &str = "SBPF_PROGRAM_ELF";
 
 /// Returns the path of the current program's ELF.
 pub fn program_elf() -> String {
     let mut path = match env::var_os(SBPF_PROGRAM_ELF_ENV) {
         Some(path) => PathBuf::from(path),
+        // Fallback to `cargo-build-sbpf` elf path.
         None => {
             let compiler = compiler::Compiler::CargoBuildSbpf;
             let package_dir =
@@ -42,8 +45,7 @@ pub fn program_elf() -> String {
                 .parent()
                 .and_then(Path::parent)
                 .expect("package directory is inside the workspace `programs/` directory");
-            root.join(compiler.target_dir())
-                .join(compiler.elf_file_name(&target))
+            compiler.elf_path(root, &target)
         }
     };
     path.set_extension("");
@@ -56,6 +58,7 @@ pub fn program_elf() -> String {
 pub struct BenchmarkResult {
     pub name: String,
     pub compute_units: u64,
+    pub error: Option<String>,
 }
 
 pub type BenchmarkRunner = fn(&Mollusk, Pubkey) -> Result<Vec<BenchmarkResult>, BenchmarkError>;
@@ -72,97 +75,52 @@ impl ProgramRegistration {
     }
 }
 
-pub fn run(root: &Path, registrations: &[ProgramRegistration]) -> ExitCode {
-    match run_inner(root, registrations) {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(error) => {
-            eprintln!("error: {error}");
-            ExitCode::FAILURE
-        }
-    }
-}
-
-fn run_inner(root: &Path, registrations: &[ProgramRegistration]) -> Result<(), Box<dyn Error>> {
-    let Some(compiler) = parse_arguments(env::args_os().skip(1))? else {
-        return Ok(());
-    };
+pub fn run(
+    root: &Path,
+    compiler: Compiler,
+    registrations: &[ProgramRegistration],
+) -> Result<(), Box<dyn Error>> {
+    logging::init();
     let manifest = manifest::load(&root.join("programs/manifest.json"))?;
     let packages = manifest::load_packages(root)?;
     manifest::validate(&manifest, &packages)?;
     let compiler_version = compiler.version()?;
-    // One timestamp for the whole run, shared by every program's artifacts.
     let run_timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_secs())
+        .map(|duration| u64::try_from(duration.as_millis()).unwrap_or_default())
         .unwrap_or_default();
 
-    let programs = runner::run_programs(
-        root,
-        compiler,
-        registrations,
-        &manifest,
-        &packages,
-        run_timestamp,
-    )?;
+    let (report, saved_artifacts) = {
+        let (programs, saved_artifacts) = runner::run_programs(
+            root,
+            compiler,
+            registrations,
+            &manifest,
+            &packages,
+            run_timestamp,
+        )?;
 
-    let report = model::Report {
-        compiler: compiler_version,
-        programs,
+        (
+            model::Report {
+                compiler: compiler_version,
+                programs,
+            },
+            saved_artifacts,
+        )
     };
-    let artifacts_dir = root
-        .join("artifacts")
+    let artifacts_dir = Path::new("/tmp")
         .join(compiler.tool_name())
         .join(run_timestamp.to_string());
-    report::print_terminal(&report, &artifacts_dir.display().to_string());
+    report::print_terminal(
+        &report,
+        saved_artifacts,
+        &artifacts_dir.display().to_string(),
+    );
     Ok(())
 }
 
 fn cargo() -> OsString {
     env::var_os("CARGO").unwrap_or_else(|| OsString::from("cargo"))
-}
-
-fn parse_arguments(
-    arguments: impl Iterator<Item = OsString>,
-) -> Result<Option<Compiler>, Box<dyn Error>> {
-    let mut compiler = None;
-    let mut arguments = arguments.peekable();
-    while let Some(argument) = arguments.next() {
-        let Some(text) = argument.to_str() else {
-            return Err(invalid_input("arguments must be UTF-8"));
-        };
-        match text {
-            "--help" | "-h" => {
-                print_usage();
-                return Ok(None);
-            }
-            "--compiler" => {
-                let value = arguments
-                    .next()
-                    .ok_or_else(|| invalid_input("missing value for --compiler"))?;
-                let value = value
-                    .into_string()
-                    .map_err(|_| invalid_input("--compiler must be UTF-8"))?;
-                compiler = Some(Compiler::from_name(&value)?);
-            }
-            _ if text.starts_with("--compiler=") => {
-                compiler = Some(Compiler::from_name(&text["--compiler=".len()..])?);
-            }
-            _ => {
-                return Err(invalid_input(format!(
-                    "unknown argument `{text}`; expected `--compiler`"
-                )));
-            }
-        }
-    }
-    compiler.map(Some).ok_or_else(|| {
-        invalid_input(format!(
-            "missing --compiler; expected `{CARGO_BUILD_SBPF}` or `{CARGO_BUILD_SBF}`"
-        ))
-    })
-}
-
-fn print_usage() {
-    println!("Usage: cargo run -- --compiler=<{CARGO_BUILD_SBPF}|{CARGO_BUILD_SBF}>");
 }
 
 fn command_error(command: &str, output: &Output) -> Box<dyn Error> {
@@ -171,10 +129,6 @@ fn command_error(command: &str, output: &Output) -> Box<dyn Error> {
         output.status,
         String::from_utf8_lossy(&output.stderr).trim()
     ))
-}
-
-fn invalid_input(message: impl Into<String>) -> Box<dyn Error> {
-    Box::new(io::Error::new(io::ErrorKind::InvalidInput, message.into()))
 }
 
 fn invalid_data(message: impl Into<String>) -> Box<dyn Error> {
@@ -200,9 +154,16 @@ impl Benchmark {
 
         let result = mollusk.process_instruction(instruction, accounts);
 
+        let error = result
+            .raw_result
+            .as_ref()
+            .err()
+            .map(|error| error.to_string());
+
         Ok(BenchmarkResult {
             name: self.name,
             compute_units: result.compute_units_consumed,
+            error,
         })
     }
 }
@@ -222,7 +183,7 @@ impl fmt::Display for BenchmarkError {
 
 impl Error for BenchmarkError {}
 
-pub fn validate_name(name: &str) -> Result<(), String> {
+pub(crate) fn validate_name(name: &str) -> Result<(), String> {
     if name.is_empty()
         || !name
             .bytes()

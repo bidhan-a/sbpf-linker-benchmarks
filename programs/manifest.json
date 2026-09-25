@@ -22,6 +22,14 @@
     {
       "name": "rodata-alignment",
       "benchmarks": []
+    },
+    {
+      "name": "dyn-pointer",
+      "benchmarks": []
+    },
+    {
+      "name": "struct-table",
+      "benchmarks": []
     }
   ]
 }

@@ -42,7 +42,7 @@ mod tests {
     use harness::{Check, Instruction, Mollusk, Pubkey};
 
     #[test]
-    fn registry_all_indices() {
+    fn test_pointer_table_all_indices() {
         let program_id: Pubkey = [2u8; 32].into();
         let mollusk = Mollusk::new(&program_id, &harness::program_elf());
         for index in 0..4u8 {

@@ -1,27 +1,21 @@
-use std::{error::Error, process::Command};
+use std::{
+    error::Error,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
-use crate::{cargo, command_error, invalid_input};
+use crate::{cargo, command_error};
 
 pub(crate) const CARGO_BUILD_SBPF: &str = "cargo-build-sbpf";
 pub(crate) const CARGO_BUILD_SBF: &str = "cargo-build-sbf";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum Compiler {
+pub enum Compiler {
     CargoBuildSbpf,
     CargoBuildSbf,
 }
 
 impl Compiler {
-    pub(crate) fn from_name(name: &str) -> Result<Self, Box<dyn Error>> {
-        match name {
-            CARGO_BUILD_SBPF => Ok(Self::CargoBuildSbpf),
-            CARGO_BUILD_SBF => Ok(Self::CargoBuildSbf),
-            other => Err(invalid_input(format!(
-                "unknown compiler `{other}`; expected `{CARGO_BUILD_SBPF}` or `{CARGO_BUILD_SBF}`"
-            ))),
-        }
-    }
-
     pub(crate) fn subcommand(self) -> &'static str {
         match self {
             Self::CargoBuildSbpf => "build-sbpf",
@@ -43,11 +37,12 @@ impl Compiler {
         }
     }
 
-    pub(crate) fn elf_file_name(self, target_name: &str) -> String {
-        match self {
+    pub(crate) fn elf_path(self, root: &Path, target_name: &str) -> PathBuf {
+        let file_name = match self {
             Self::CargoBuildSbpf => format!("lib{target_name}.so"),
             Self::CargoBuildSbf => format!("{target_name}.so"),
-        }
+        };
+        root.join(self.target_dir()).join(file_name)
     }
 
     pub(crate) fn tool_name(self) -> &'static str {
@@ -57,34 +52,36 @@ impl Compiler {
         }
     }
 
-    pub(crate) fn version(self) -> Result<String, Box<dyn Error>> {
+    pub(crate) fn version(self) -> Result<Vec<(String, String)>, Box<dyn Error>> {
         let cargo = cargo().to_string_lossy().into_owned();
         match self {
             Self::CargoBuildSbpf => {
-                let build_sbpf = command_version(&cargo, &[self.subcommand(), "--version"], false)?;
-                let sbpf_linker = command_version("sbpf-linker", &["--version"], true)?;
-                let rustc = command_version("rustc", &["--version"], false)?;
-                Ok(format!("{build_sbpf} / {sbpf_linker} / {rustc}"))
+                let mut versions = run_version_command(&cargo, &[self.subcommand(), "--version"])?;
+                versions.extend(run_version_command("sbpf-linker", &["--version"])?);
+                versions.extend(run_version_command("rustc", &["--version"])?);
+                Ok(versions)
             }
-            Self::CargoBuildSbf => command_version(&cargo, &[self.subcommand(), "--version"], true),
+            Self::CargoBuildSbf => run_version_command(&cargo, &[self.subcommand(), "--version"]),
         }
     }
 }
 
-fn command_version(
+fn run_version_command(
     command: &str,
     args: &[&str],
-    join_lines: bool,
-) -> Result<String, Box<dyn Error>> {
+) -> Result<Vec<(String, String)>, Box<dyn Error>> {
     let description = format!("{} {}", command, args.join(" "));
     let output = Command::new(command).args(args).output()?;
     if !output.status.success() {
         return Err(command_error(&description, &output));
     }
-    let version = String::from_utf8(output.stdout)?.trim().to_owned();
-    if join_lines {
-        Ok(version.replace('\n', " / "))
-    } else {
-        Ok(version)
-    }
+    let stdout = String::from_utf8(output.stdout)?;
+    Ok(stdout
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| match line.split_once(' ') {
+            Some((label, version)) => (label.to_owned(), version.to_owned()),
+            None => (line.to_owned(), String::new()),
+        })
+        .collect())
 }

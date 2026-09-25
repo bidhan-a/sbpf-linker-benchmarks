@@ -26,7 +26,16 @@ programs/
 ├── function-pointer/
 │   ├── Cargo.toml
 │   └── src/lib.rs
-└── pointer-table/
+├── pointer-table/
+│   ├── Cargo.toml
+│   └── src/lib.rs
+├── dyn-pointer/
+│   ├── Cargo.toml
+│   └── src/lib.rs
+├── struct-table/
+│   ├── Cargo.toml
+│   └── src/lib.rs
+└── rodata-alignment/
     ├── Cargo.toml
     └── src/lib.rs
 ```
@@ -43,69 +52,20 @@ Programs without a benchmark module are only built and tested and are not includ
 Baselines in `programs/manifest.json` are generated with the release `cargo-build-sbpf` and `sbpf-linker` and both compilers 
 are compared against the same baselines.
 
-## Example runs
-
-cargo-build-sbf
-```
-> cargo run -- --compiler cargo-build-sbf
-...
-<build and test logs>
-...
-
-Benchmark Report
-Compiler: cargo-build-sbf 4.1.0 / platform-tools v1.54 / rustc 1.89.0
-
-Program            Benchmark                Expected CU   Actual CU     Diff
-function-pointer   bench-function-pointer            32          30       -2
-pointer-table      bench-pointer-table               15          17       +2
-
-Run complete
-Artifacts generated at: /Users/bidhan/sbpf-linker-benchmarks/artifacts/cargo-build-sbf/1790160477
-```
-
-cargo-build-sbpf
-```
-> cargo run -- --compiler cargo-build-sbpf
-...
-<build and test logs>
-...
-
-Benchmark Report
-Compiler: cargo-build-sbpf 0.1.0 / sbpf-linker 0.2.1 / LLVM 23.1.1 / rustc 1.100.0-nightly (215a8af4b 2026-09-15)
-
-Program            Benchmark                Expected CU   Actual CU     Diff
-function-pointer   bench-function-pointer            32          32        0
-pointer-table      bench-pointer-table               15          15        0
-
-Run complete
-Artifacts generated at: /Users/bidhan/sbpf-linker-benchmarks/artifacts/cargo-build-sbpf/1790160550
-```
-
 
 ## How It Works
 
 1. The runner reads `programs/manifest.json` to determine which programs and benchmarks to run, and their expected baseline CUs.
 2. Each program is built with the selected compiler inside its package directory. 
 3. Each program's tests run with `cargo test -p <program>`.
-4. For benchmarking, built ELFs are loaded into one shared Mollusk instance with unqiue program IDs.
-5. Each program's `benchmark::run(&Mollusk, Pubkey)` executes its instruction and account combinations and returns `BenchmarkResult` values.
-6. Results are cross-checked against the manifest and each row is printed with its baseline, measured CUs, and the diff (`measured - baseline`).
+4. For benchmarking, built ELFs are loaded into one shared Mollusk instance with unique program IDs.
+5. Each program's `benchmark::run(&Mollusk, Pubkey)` executes its instruction and account combinations and returns `BenchmarkResult` values. If the program errors during execution (e.g. returns a non-zero exit code), the result carries the error and the benchmark row shows it in its `Error` column with `-` for the measured columns.
+6. Results are cross-checked against the manifest and each row is printed with its baseline, measured CUs, and the delta (`measured - baseline`).
 7. The combined report is printed to the terminal.
-
-Test and build output streams to the terminal as it happens and the benchmark report is printed at the end.
 
 ## Artifacts
 
-Every successful build is archived under `artifacts/` folder (ignored in git):
-
-```text
-artifacts/
-└── <compiler>/<program>/<unix-timestamp>/
-    ├── <crate>.so          copy of the built ELF
-    └── disassembly.s       `sbpf disassemble` output
-```
-
-Currently, we can only view these artifacts but later we can add commands to compare and analyze them (like diffing the disassembly of two runs to debug a CU change).
+Runs with an issue, such as a failing test or a changed benchmark, archive their artifacts (ELF file, disassembled output, and execution logs) under `/tmp` so they can be analyzed later.
 
 
 ## How to Add a Program

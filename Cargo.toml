@@ -12,6 +12,7 @@ resolver = "2"
 
 [dependencies]
 harness = { workspace = true }
+clap = { workspace = true }
 function-pointer = { path = "programs/function-pointer" }
 pointer-table = { path = "programs/pointer-table" }
 
@@ -21,6 +22,11 @@ workspace = true
 [workspace.dependencies]
 mollusk-svm = "=0.15.1"
 harness = { path = "crates/harness" }
+clap = { version = "4.5", features = ["derive"] }
+comfy-table = "8.0"
+indicatif = "0.18"
+log = "0.4"
+jiff = "0.2"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 solana-account = "4.3.2"
